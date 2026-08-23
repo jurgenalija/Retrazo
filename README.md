@@ -17,6 +17,9 @@
   - Automatically or manually checks GitHub Releases for the latest version of `yt-dlp`.
   - Downloads and maintains its own standalone macOS binary in `~/Library/Application Support/Retrazo/bin/yt-dlp` or auto-detects existing Homebrew / system installations.
   - One-click in-app update with live release notes inspector.
+- **📦 Retrazo App Updates from GitHub**:
+  - Checks this repository's GitHub Releases automatically or from **Retrazo > Check for Retrazo Updates**.
+  - Downloads `Retrazo-macOS.zip`, verifies its GitHub SHA-256 digest when available, validates the bundle identity and code signature, then installs and relaunches the app.
 - **🎥 Full Video & Audio Support**:
   - High resolutions: 8K (4320p), 4K (2160p), 1440p, 1080p, 720p, 480p (MP4, MKV, WebM, MOV).
   - Audio extraction: MP3 (up to 320k), M4A, FLAC (lossless), WAV, OPUS, AAC.
@@ -83,6 +86,7 @@ A complete GitHub Actions workflow is provided in [`.github/workflows/build.yml`
 
 - **Automated Builds**: Runs on every push and pull request to `main`.
 - **Automatic Releases**: When you push a version tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`), GitHub Actions compiles the app on a macOS runner, packages `Retrazo-macOS.dmg` and `Retrazo-macOS.zip`, and automatically attaches them to a new GitHub Release.
+- The tag determines the app version embedded in `Info.plist`. Use a new semantic version tag for every update, such as `v1.1.0` and then `v1.1.1`.
 
 ---
 

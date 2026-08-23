@@ -6,6 +6,7 @@ struct RetrazoApp: App {
     @StateObject private var appState = AppState.shared
     @StateObject private var settings = AppSettings.shared
     @StateObject private var binaryManager = BinaryManager.shared
+    @StateObject private var appUpdateManager = AppUpdateManager.shared
     @StateObject private var queueManager = DownloadQueueManager.shared
     
     var body: some Scene {
@@ -18,6 +19,16 @@ struct RetrazoApp: App {
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Retrazo Updates…") {
+                    appState.selectedTab = .settingsEngine
+                    Task {
+                        await appUpdateManager.checkForUpdates()
+                    }
+                }
+                .disabled(appUpdateManager.isBusy)
+            }
+
             // File Menu
             CommandGroup(replacing: .newItem) {
                 Button("New Download...") {

@@ -8,6 +8,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build macOS Application
@@ -32,7 +35,20 @@ jobs:
         run: ./scripts/generate_icon.sh
 
       - name: Build Retrazo App
-        run: ./scripts/build_app.sh
+        env:
+          RETRAZO_BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            export RETRAZO_VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          ./scripts/build_app.sh
+
+      - name: Verify App Bundle
+        run: |
+          codesign --verify --deep --strict --verbose=2 build/Retrazo.app
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/Retrazo.app/Contents/Info.plist)" = "${GITHUB_REF_NAME#v}"
+          fi
 
       - name: Package DMG Installer
         run: ./scripts/create_dmg.sh

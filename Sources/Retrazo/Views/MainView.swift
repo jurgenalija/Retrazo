@@ -4,6 +4,7 @@ struct MainView: View {
     @ObservedObject var appState = AppState.shared
     @ObservedObject var queueManager = DownloadQueueManager.shared
     @ObservedObject var binaryManager = BinaryManager.shared
+    @ObservedObject var appUpdateManager = AppUpdateManager.shared
     
     var body: some View {
         NavigationSplitView {
@@ -48,7 +49,7 @@ struct MainView: View {
                         HStack {
                             Label(NavigationTab.settingsEngine.rawValue, systemImage: NavigationTab.settingsEngine.icon)
                             Spacer()
-                            if binaryManager.isUpdateAvailable {
+                            if binaryManager.isUpdateAvailable || appUpdateManager.isUpdateAvailable {
                                 Circle()
                                     .fill(Color.orange)
                                     .frame(width: 8, height: 8)

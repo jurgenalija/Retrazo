@@ -2,14 +2,18 @@ import Foundation
 
 enum Constants {
     static let appName = "Retrazo"
-    static let appVersion = "1.0.0"
+    static var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
+    }
     static let appAuthor = "Retrazo Team"
-    static let githubRepo = "https://github.com/yt-dlp/yt-dlp"
+    static let githubRepo = "https://github.com/jurgenalija/Retrazo"
     
     enum URLs {
         static let ytdlpReleasesAPI = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
         static let ytdlpMacOSBinary = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
         static let ytdlpUniversalBinary = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
+        static let appReleasesAPI = "https://api.github.com/repos/jurgenalija/Retrazo/releases/latest"
+        static let appReleasesPage = "https://github.com/jurgenalija/Retrazo/releases"
     }
     
     enum Paths {

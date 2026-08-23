@@ -44,6 +44,14 @@ elif [ -f "Sources/Retrazo/Resources/Info.plist" ]; then
     cp "Sources/Retrazo/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 fi
 
+# Tagged GitHub builds inject the release version without modifying source files.
+if [ -n "${RETRAZO_VERSION:-}" ]; then
+    plutil -replace CFBundleShortVersionString -string "$RETRAZO_VERSION" "$CONTENTS_DIR/Info.plist"
+fi
+if [ -n "${RETRAZO_BUILD_NUMBER:-}" ]; then
+    plutil -replace CFBundleVersion -string "$RETRAZO_BUILD_NUMBER" "$CONTENTS_DIR/Info.plist"
+fi
+
 # Copy AppIcon.icns
 if [ -f "Sources/Retrazo/Resources/AppIcon.icns" ]; then
     cp "Sources/Retrazo/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"

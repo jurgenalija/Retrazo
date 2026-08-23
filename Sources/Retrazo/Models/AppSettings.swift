@@ -58,6 +58,10 @@ class AppSettings: ObservableObject {
     @Published var autoCheckYtDlpUpdates: Bool {
         didSet { defaults.set(autoCheckYtDlpUpdates, forKey: "autoCheckYtDlpUpdates") }
     }
+
+    @Published var autoCheckAppUpdates: Bool {
+        didSet { defaults.set(autoCheckAppUpdates, forKey: "autoCheckAppUpdates") }
+    }
     
     @Published var customYtDlpPath: String {
         didSet { defaults.set(customYtDlpPath, forKey: "customYtDlpPath") }
@@ -140,6 +144,7 @@ class AppSettings: ObservableObject {
         let savedConcurrency = defaults.object(forKey: "maxConcurrentDownloads") != nil ? defaults.integer(forKey: "maxConcurrentDownloads") : 3
         self.maxConcurrentDownloads = min(max(savedConcurrency, 1), 10)
         self.autoCheckYtDlpUpdates = defaults.object(forKey: "autoCheckYtDlpUpdates") != nil ? defaults.bool(forKey: "autoCheckYtDlpUpdates") : true
+        self.autoCheckAppUpdates = defaults.object(forKey: "autoCheckAppUpdates") != nil ? defaults.bool(forKey: "autoCheckAppUpdates") : true
         self.customYtDlpPath = defaults.string(forKey: "customYtDlpPath") ?? ""
         self.customFfmpegPath = defaults.string(forKey: "customFfmpegPath") ?? ""
         self.embedThumbnail = defaults.object(forKey: "embedThumbnail") != nil ? defaults.bool(forKey: "embedThumbnail") : true
@@ -184,6 +189,7 @@ class AppSettings: ObservableObject {
         defaultPresetId = DownloadPreset.bestVideo.id
         maxConcurrentDownloads = 3
         autoCheckYtDlpUpdates = true
+        autoCheckAppUpdates = true
         customYtDlpPath = ""
         customFfmpegPath = ""
         embedThumbnail = true
