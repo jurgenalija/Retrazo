@@ -65,21 +65,24 @@ struct SettingsView: View {
     
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 18) {
+            // macOS Native Appearance Card Selector
             GroupBox(label: Label("Appearance", systemImage: "paintbrush")) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Picker("Theme", selection: $settings.appTheme) {
-                        ForEach(AppTheme.allCases) { theme in
-                            HStack {
-                                Image(systemName: theme.icon)
-                                Text(theme.rawValue)
+                HStack(spacing: 20) {
+                    ForEach(AppTheme.allCases) { theme in
+                        ThemeOptionCard(
+                            theme: theme,
+                            isSelected: settings.appTheme == theme,
+                            onSelect: {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    settings.appTheme = theme
+                                }
                             }
-                            .tag(theme)
-                        }
+                        )
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 320)
                 }
-                .padding(8)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             
             GroupBox(label: Label("Download Location", systemImage: "folder")) {
@@ -320,6 +323,152 @@ struct SettingsView: View {
         
         if panel.runModal() == .OK, let url = panel.url {
             binding.wrappedValue = url.path
+        }
+    }
+}
+
+// MARK: - ThemeOptionCard (Clean macOS Visual Preview Card)
+
+struct ThemeOptionCard: View {
+    let theme: AppTheme
+    let isSelected: Bool
+    let onSelect: () -> Void
+    @State private var isHovered: Bool = false
+    
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(spacing: 8) {
+                // Mini Window Preview
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(
+                            isSelected ? Color.accentColor : (isHovered ? Color.secondary.opacity(0.45) : Color.secondary.opacity(0.2)),
+                            lineWidth: isSelected ? 2 : 1
+                        )
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(NSColor.controlBackgroundColor))
+                        )
+                    
+                    previewIllustration
+                        .cornerRadius(5)
+                        .padding(2)
+                }
+                .frame(width: 86, height: 56)
+                .shadow(color: isSelected ? Color.accentColor.opacity(0.3) : (isHovered ? Color.black.opacity(0.1) : Color.clear), radius: 4, x: 0, y: 2)
+                
+                // Label with active check indicator
+                HStack(spacing: 4) {
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.accentColor)
+                    }
+                    Text(theme.rawValue)
+                        .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                        .foregroundColor(isSelected ? .primary : .secondary)
+                }
+            }
+            .padding(4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+    
+    @ViewBuilder
+    private var previewIllustration: some View {
+        switch theme {
+        case .light:
+            VStack(spacing: 3) {
+                HStack(spacing: 3) {
+                    Circle().fill(Color.red.opacity(0.8)).frame(width: 4, height: 4)
+                    Circle().fill(Color.yellow.opacity(0.8)).frame(width: 4, height: 4)
+                    Circle().fill(Color.green.opacity(0.8)).frame(width: 4, height: 4)
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
+                .padding(.top, 4)
+                
+                VStack(alignment: .leading, spacing: 3) {
+                    RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(0.3)).frame(height: 5)
+                    RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(0.2)).frame(width: 48, height: 4)
+                    RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(0.2)).frame(width: 32, height: 4)
+                }
+                .padding(.horizontal, 4)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.white)
+            
+        case .dark:
+            VStack(spacing: 3) {
+                HStack(spacing: 3) {
+                    Circle().fill(Color.red.opacity(0.8)).frame(width: 4, height: 4)
+                    Circle().fill(Color.yellow.opacity(0.8)).frame(width: 4, height: 4)
+                    Circle().fill(Color.green.opacity(0.8)).frame(width: 4, height: 4)
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
+                .padding(.top, 4)
+                
+                VStack(alignment: .leading, spacing: 3) {
+                    RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.35)).frame(height: 5)
+                    RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.2)).frame(width: 48, height: 4)
+                    RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.2)).frame(width: 32, height: 4)
+                }
+                .padding(.horizontal, 4)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(red: 0.12, green: 0.12, blue: 0.15))
+            
+        case .system:
+            HStack(spacing: 0) {
+                // Left half: Light
+                VStack(spacing: 3) {
+                    HStack(spacing: 2) {
+                        Circle().fill(Color.red.opacity(0.8)).frame(width: 4, height: 4)
+                        Circle().fill(Color.yellow.opacity(0.8)).frame(width: 4, height: 4)
+                        Spacer()
+                    }
+                    .padding(.leading, 3)
+                    .padding(.top, 4)
+                    
+                    VStack(alignment: .leading, spacing: 3) {
+                        RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(0.3)).frame(height: 5)
+                        RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(0.2)).frame(width: 22, height: 4)
+                    }
+                    .padding(.leading, 3)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.white)
+                
+                // Divider line
+                Rectangle().fill(Color.gray.opacity(0.35)).frame(width: 1)
+                
+                // Right half: Dark
+                VStack(spacing: 3) {
+                    HStack {
+                        Spacer()
+                        Circle().fill(Color.green.opacity(0.8)).frame(width: 4, height: 4)
+                    }
+                    .padding(.trailing, 3)
+                    .padding(.top, 4)
+                    
+                    VStack(alignment: .trailing, spacing: 3) {
+                        RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.35)).frame(height: 5)
+                        RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.2)).frame(width: 22, height: 4)
+                    }
+                    .padding(.trailing, 3)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(red: 0.12, green: 0.12, blue: 0.15))
+            }
         }
     }
 }
