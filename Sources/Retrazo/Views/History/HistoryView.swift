@@ -66,8 +66,9 @@ struct HistoryView: View {
                         Text(filter.rawValue).tag(filter)
                     }
                 }
+                .labelsHidden()
                 .pickerStyle(.segmented)
-                .frame(width: 240)
+                .frame(width: 260)
                 
                 // Clear History Button
                 if !queueManager.historyDownloads.isEmpty {
