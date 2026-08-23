@@ -11,14 +11,32 @@ class DownloadQueueManager: ObservableObject {
     
     private var runningTasks: [UUID: ProcessTask] = [:]
     private let settings = AppSettings.shared
+    private var cancellables = Set<AnyCancellable>()
     
     init() {
         loadHistory()
+
+        settings.$maxConcurrentDownloads
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.processQueue()
+                }
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Queue Operations
     
-    func enqueue(url: String, preset: DownloadPreset? = nil, customArgs: [String] = [], mediaInfo: MediaInfo? = nil) {
+    func enqueue(
+        url: String,
+        preset: DownloadPreset? = nil,
+        customArgs: [String] = [],
+        mediaInfo: MediaInfo? = nil,
+        optionOverrides: DownloadOptionOverrides? = nil
+    ) {
         let activePreset = preset ?? DownloadPreset.defaultPresets.first(where: { $0.id == settings.defaultPresetId }) ?? .bestVideo
         
         let title = mediaInfo?.displayTitle ?? "Preparing download..."
@@ -37,6 +55,7 @@ class DownloadQueueManager: ObservableObject {
             formatDescription: activePreset.name,
             customArgs: customArgs,
             preset: activePreset,
+            optionOverrides: optionOverrides,
             isPlaylist: mediaInfo?.isPlaylist ?? false,
             playlistCount: mediaInfo?.playlistCount
         )
@@ -74,6 +93,9 @@ class DownloadQueueManager: ObservableObject {
         newItem.speed = ""
         newItem.eta = ""
         newItem.downloadedBytes = 0
+        newItem.totalBytes = 0
+        newItem.totalBytesEstimated = false
+        newItem.outputPath = nil
         newItem.errorMessage = nil
         newItem.logs = []
         newItem.createdAt = Date()
@@ -111,13 +133,19 @@ class DownloadQueueManager: ObservableObject {
     }
     
     func cancelAll() {
+        let cancelledIDs = Set(runningTasks.keys)
+
         for (id, task) in runningTasks {
             task.cancel()
             if let index = activeDownloads.firstIndex(where: { $0.id == id }) {
                 activeDownloads[index].status = .cancelled
+                activeDownloads[index].errorMessage = "Cancelled by user"
+                activeDownloads[index].completedAt = Date()
+                moveItemToHistory(activeDownloads[index])
             }
         }
         runningTasks.removeAll()
+        activeDownloads.removeAll { cancelledIDs.contains($0.id) }
         processQueue()
     }
     

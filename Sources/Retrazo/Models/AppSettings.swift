@@ -126,6 +126,10 @@ class AppSettings: ObservableObject {
     @Published var soundNotifications: Bool {
         didSet { defaults.set(soundNotifications, forKey: "soundNotifications") }
     }
+
+    @Published var skipPreviouslyDownloaded: Bool {
+        didSet { defaults.set(skipPreviouslyDownloaded, forKey: "skipPreviouslyDownloaded") }
+    }
     
     init() {
         let savedThemeString = defaults.string(forKey: "appTheme") ?? AppTheme.system.rawValue
@@ -133,7 +137,8 @@ class AppSettings: ObservableObject {
         
         self.downloadDirectory = defaults.string(forKey: "downloadDirectory") ?? Constants.Paths.defaultDownloadDirectory.path
         self.defaultPresetId = defaults.string(forKey: "defaultPresetId") ?? DownloadPreset.bestVideo.id
-        self.maxConcurrentDownloads = defaults.object(forKey: "maxConcurrentDownloads") != nil ? defaults.integer(forKey: "maxConcurrentDownloads") : 3
+        let savedConcurrency = defaults.object(forKey: "maxConcurrentDownloads") != nil ? defaults.integer(forKey: "maxConcurrentDownloads") : 3
+        self.maxConcurrentDownloads = min(max(savedConcurrency, 1), 10)
         self.autoCheckYtDlpUpdates = defaults.object(forKey: "autoCheckYtDlpUpdates") != nil ? defaults.bool(forKey: "autoCheckYtDlpUpdates") : true
         self.customYtDlpPath = defaults.string(forKey: "customYtDlpPath") ?? ""
         self.customFfmpegPath = defaults.string(forKey: "customFfmpegPath") ?? ""
@@ -151,6 +156,7 @@ class AppSettings: ObservableObject {
         self.rateLimitKbps = defaults.integer(forKey: "rateLimitKbps")
         self.clipboardMonitoring = defaults.object(forKey: "clipboardMonitoring") != nil ? defaults.bool(forKey: "clipboardMonitoring") : true
         self.soundNotifications = defaults.object(forKey: "soundNotifications") != nil ? defaults.bool(forKey: "soundNotifications") : true
+        self.skipPreviouslyDownloaded = defaults.bool(forKey: "skipPreviouslyDownloaded")
         
         applyTheme()
     }
@@ -194,6 +200,7 @@ class AppSettings: ObservableObject {
         rateLimitKbps = 0
         clipboardMonitoring = true
         soundNotifications = true
+        skipPreviouslyDownloaded = false
         applyTheme()
     }
 }

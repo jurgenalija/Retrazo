@@ -39,10 +39,14 @@ struct MainView: View {
                     }
                 }
                 
-                Section("Preferences") {
-                    NavigationLink(value: NavigationTab.settings) {
+                Section("Settings") {
+                    NavigationLink(value: NavigationTab.settingsGeneral) {
+                        Label(NavigationTab.settingsGeneral.rawValue, systemImage: NavigationTab.settingsGeneral.icon)
+                    }
+
+                    NavigationLink(value: NavigationTab.settingsEngine) {
                         HStack {
-                            Label(NavigationTab.settings.rawValue, systemImage: NavigationTab.settings.icon)
+                            Label(NavigationTab.settingsEngine.rawValue, systemImage: NavigationTab.settingsEngine.icon)
                             Spacer()
                             if binaryManager.isUpdateAvailable {
                                 Circle()
@@ -51,7 +55,17 @@ struct MainView: View {
                             }
                         }
                     }
-                    
+
+                    NavigationLink(value: NavigationTab.settingsFormats) {
+                        Label(NavigationTab.settingsFormats.rawValue, systemImage: NavigationTab.settingsFormats.icon)
+                    }
+
+                    NavigationLink(value: NavigationTab.settingsAdvanced) {
+                        Label(NavigationTab.settingsAdvanced.rawValue, systemImage: NavigationTab.settingsAdvanced.icon)
+                    }
+                }
+
+                Section("Retrazo") {
                     NavigationLink(value: NavigationTab.about) {
                         Label(NavigationTab.about.rawValue, systemImage: NavigationTab.about.icon)
                     }
@@ -67,12 +81,20 @@ struct MainView: View {
                     DownloadsView()
                 case .history:
                     HistoryView()
-                case .settings:
-                    SettingsView()
+                case .settingsGeneral:
+                    SettingsView(selectedTab: .general)
+                case .settingsEngine:
+                    SettingsView(selectedTab: .engine)
+                case .settingsFormats:
+                    SettingsView(selectedTab: .formats)
+                case .settingsAdvanced:
+                    SettingsView(selectedTab: .advanced)
                 case .about:
                     AboutView()
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
             .navigationTitle(appState.selectedTab.rawValue)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {

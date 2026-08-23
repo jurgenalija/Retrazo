@@ -12,7 +12,7 @@ struct FormatBadge: View {
                 Text(preset.audioFormat.displayName)
                     .font(.system(size: 11, weight: .semibold))
             } else {
-                if let height = preset.videoQuality.maxHeight {
+                if let height = preset.customMaxHeight ?? preset.videoQuality.maxHeight {
                     Text("\(height)p")
                         .font(.system(size: 11, weight: .semibold))
                 } else {

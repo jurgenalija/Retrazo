@@ -4,12 +4,10 @@ import AppKit
 struct DownloadsView: View {
     @ObservedObject var queueManager = DownloadQueueManager.shared
     @ObservedObject var appState = AppState.shared
-    @ObservedObject var binaryManager = BinaryManager.shared
     
     var body: some View {
         VStack(spacing: 0) {
-            // Top URL Input Bar
-            topInputBar
+            downloadComposer
             
             Divider()
             
@@ -32,67 +30,84 @@ struct DownloadsView: View {
             // Bottom Action Bar
             QuickActionBar()
         }
+        .background(Color(nsColor: .windowBackgroundColor))
     }
     
-    // MARK: - Top Input Bar
+    // MARK: - Download Composer
     
-    private var topInputBar: some View {
-        HStack(spacing: 10) {
-            HStack {
+    private var downloadComposer: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Label("Add a download", systemImage: "plus.circle.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                Text("Video, audio, or playlist")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 10) {
                 Image(systemName: "link")
                     .foregroundColor(.secondary)
-                
-                TextField("Enter or paste video URL (YouTube, Vimeo, TikTok, X, etc.)", text: $appState.quickURLText)
+
+                TextField("Paste a media link", text: $appState.quickURLText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .onSubmit {
-                        if !appState.quickURLText.trimmingCharacters(in: .whitespaces).isEmpty {
-                            appState.presentNewDownload(prefill: appState.quickURLText)
-                        }
-                    }
-                
-                if !appState.quickURLText.isEmpty {
-                    Button(action: {
+                    .font(.system(size: 14))
+                    .onSubmit(reviewDownload)
+
+                if hasQuickURL {
+                    Button {
                         appState.quickURLText = ""
-                    }) {
+                    } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Clear link")
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 9)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
             )
-            
-            // Quick Paste button
-            Button(action: {
-                if let clip = NSPasteboard.general.string(forType: .string) {
-                    appState.quickURLText = clip.trimmingCharacters(in: .whitespacesAndNewlines)
-                    appState.presentNewDownload(prefill: appState.quickURLText)
+            .clipShape(RoundedRectangle(cornerRadius: 9))
+
+            HStack(spacing: 12) {
+                Text(hasQuickURL
+                     ? "Next, choose from the qualities available for this link."
+                     : "Paste directly here, or let Retrazo use your clipboard.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(action: hasQuickURL ? reviewDownload : pasteAndReview) {
+                    Label(
+                        hasQuickURL ? "Choose Format" : "Paste Link & Continue",
+                        systemImage: hasQuickURL ? "slider.horizontal.3" : "doc.on.clipboard"
+                    )
+                    .frame(minWidth: 142)
                 }
-            }) {
-                Label("Paste", systemImage: "doc.on.clipboard")
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
-            .controlSize(.regular)
-            
-            // Customize & Download Button
-            Button(action: {
-                appState.presentNewDownload(prefill: appState.quickURLText)
-            }) {
-                Label("Download", systemImage: "arrow.down.circle.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .disabled(appState.quickURLText.trimmingCharacters(in: .whitespaces).isEmpty)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.secondary.opacity(0.12), lineWidth: 1)
+                )
+        )
+        .padding(16)
         .background(Color(NSColor.windowBackgroundColor))
     }
     
@@ -102,39 +117,58 @@ struct DownloadsView: View {
         VStack(spacing: 16) {
             Spacer()
             
-            Image(systemName: "arrow.down.circle")
-                .font(.system(size: 48, weight: .light))
-                .foregroundColor(.secondary.opacity(0.6))
+            Image(systemName: "link.badge.plus")
+                .font(.system(size: 42, weight: .light))
+                .foregroundColor(.accentColor.opacity(0.75))
             
             VStack(spacing: 6) {
-                Text("No Active Downloads")
+                Text("Ready for a link")
                     .font(.headline)
                     .foregroundColor(.primary)
                 
-                Text("Paste a URL from YouTube, Vimeo, TikTok, Twitch, or any supported site above to start.")
+                Text("Retrazo checks the source first, then shows only the video qualities that are actually available.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 380)
+                    .frame(maxWidth: 420)
             }
-            
-            Button(action: {
-                if let clip = NSPasteboard.general.string(forType: .string) {
-                    appState.presentNewDownload(prefill: clip.trimmingCharacters(in: .whitespacesAndNewlines))
-                } else {
-                    appState.presentNewDownload()
-                }
-            }) {
-                Label("Add Download from Clipboard", systemImage: "plus.circle.fill")
-                    .font(.system(size: 13, weight: .medium))
+
+            HStack(spacing: 18) {
+                Label("1. Paste link", systemImage: "doc.on.clipboard")
+                Label("2. Choose quality", systemImage: "checklist")
+                Label("3. Download", systemImage: "arrow.down")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .padding(.top, 8)
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .padding(.top, 4)
             
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor).opacity(0.3))
+    }
+
+    private var hasQuickURL: Bool {
+        !appState.quickURLText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func reviewDownload() {
+        guard hasQuickURL else { return }
+        appState.presentNewDownload(prefill: appState.quickURLText)
+    }
+
+    private func pasteAndReview() {
+        guard let clipboardText = NSPasteboard.general.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !clipboardText.isEmpty else {
+            appState.showAlert(
+                title: "No Link on Clipboard",
+                message: "Copy a media link, then try again."
+            )
+            return
+        }
+
+        appState.quickURLText = clipboardText
+        appState.presentNewDownload(prefill: clipboardText)
     }
 }

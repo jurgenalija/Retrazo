@@ -34,6 +34,10 @@ enum Constants {
         static var historyFile: URL {
             applicationSupportDirectory.appendingPathComponent("history.json")
         }
+
+        static var downloadArchiveFile: URL {
+            applicationSupportDirectory.appendingPathComponent("download-archive.txt")
+        }
         
         static var defaultDownloadDirectory: URL {
             FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
@@ -52,7 +56,9 @@ enum Constants {
         
         static func isSupported(url: String) -> Bool {
             guard let host = URL(string: url)?.host?.lowercased() else { return false }
-            return domains.contains { host.contains($0) }
+            return domains.contains { domain in
+                host == domain || host.hasSuffix(".\(domain)")
+            }
         }
     }
 }

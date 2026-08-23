@@ -4,7 +4,10 @@ import Combine
 enum NavigationTab: String, CaseIterable, Identifiable {
     case downloads = "Downloads"
     case history = "History"
-    case settings = "Settings"
+    case settingsGeneral = "General"
+    case settingsEngine = "Engine & Updates"
+    case settingsFormats = "Formats & Media"
+    case settingsAdvanced = "Advanced"
     case about = "About"
     
     var id: String { rawValue }
@@ -13,7 +16,10 @@ enum NavigationTab: String, CaseIterable, Identifiable {
         switch self {
         case .downloads: return "arrow.down.circle"
         case .history: return "clock.arrow.circlepath"
-        case .settings: return "gearshape"
+        case .settingsGeneral: return "gear"
+        case .settingsEngine: return "bolt"
+        case .settingsFormats: return "film"
+        case .settingsAdvanced: return "slider.horizontal.3"
         case .about: return "info.circle"
         }
     }

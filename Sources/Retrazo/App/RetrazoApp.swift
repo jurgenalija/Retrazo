@@ -12,7 +12,7 @@ struct RetrazoApp: App {
         WindowGroup {
             MainView()
                 .frame(minWidth: 800, minHeight: 520)
-                .background(VisualEffectBackground())
+                .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
                 .preferredColorScheme(settings.appTheme.colorScheme)
         }
         .windowStyle(.titleBar)
@@ -46,7 +46,7 @@ struct RetrazoApp: App {
                 .keyboardShortcut("2", modifiers: .command)
                 
                 Button("Settings") {
-                    appState.selectedTab = .settings
+                    appState.selectedTab = .settingsGeneral
                 }
                 .keyboardShortcut("3", modifiers: .command)
                 
@@ -85,23 +85,11 @@ struct RetrazoApp: App {
                 Button("Check for yt-dlp Updates") {
                     Task {
                         await binaryManager.checkForUpdates()
-                        appState.selectedTab = .settings
+                        appState.selectedTab = .settingsEngine
                     }
                 }
                 .keyboardShortcut("u", modifiers: [.command, .shift])
             }
         }
     }
-}
-
-struct VisualEffectBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.blendingMode = .behindWindow
-        view.state = .active
-        view.material = .underWindowBackground
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }

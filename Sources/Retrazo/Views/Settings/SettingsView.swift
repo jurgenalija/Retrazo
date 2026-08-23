@@ -3,7 +3,8 @@ import AppKit
 
 struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
-    @State private var selectedTab: SettingsTab = .general
+    let selectedTab: SettingsTab
+    @State private var archiveMessage: String? = nil
     
     enum SettingsTab: String, CaseIterable, Identifiable {
         case general = "General"
@@ -24,39 +25,21 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Tab Selector
-            HStack(spacing: 12) {
-                ForEach(SettingsTab.allCases) { tab in
-                    SettingsTabButton(
-                        tab: tab,
-                        isSelected: selectedTab == tab,
-                        action: { selectedTab = tab }
-                    )
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                switch selectedTab {
+                case .general:
+                    generalSection
+                case .engine:
+                    BinaryUpdaterView()
+                    customPathsSection
+                case .formats:
+                    formatsSection
+                case .advanced:
+                    advancedSection
                 }
             }
-            .padding(.top, 14)
-            .padding(.bottom, 10)
-            
-            Divider()
-            
-            // Tab Contents
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    switch selectedTab {
-                    case .general:
-                        generalSection
-                    case .engine:
-                        BinaryUpdaterView()
-                        customPathsSection
-                    case .formats:
-                        formatsSection
-                    case .advanced:
-                        advancedSection
-                    }
-                }
-                .padding(24)
-            }
+            .padding(24)
         }
         .frame(minWidth: 580, minHeight: 480)
     }
@@ -273,6 +256,31 @@ struct SettingsView: View {
                 }
                 .padding(8)
             }
+
+            GroupBox(label: Label("Duplicate Prevention", systemImage: "checkmark.circle")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Skip media downloaded previously", isOn: $settings.skipPreviouslyDownloaded)
+                        .font(.system(size: 13))
+
+                    Text("Retrazo records successful downloads and skips matching media in the future.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack {
+                        Button("Clear Download Archive") {
+                            clearDownloadArchive()
+                        }
+                        .disabled(!FileManager.default.fileExists(atPath: Constants.Paths.downloadArchiveFile.path))
+
+                        if let archiveMessage {
+                            Text(archiveMessage)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(8)
+            }
             
             GroupBox(label: Label("Power-User CLI Arguments", systemImage: "terminal")) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -323,6 +331,17 @@ struct SettingsView: View {
         
         if panel.runModal() == .OK, let url = panel.url {
             binding.wrappedValue = url.path
+        }
+    }
+
+    private func clearDownloadArchive() {
+        do {
+            if FileManager.default.fileExists(atPath: Constants.Paths.downloadArchiveFile.path) {
+                try FileManager.default.removeItem(at: Constants.Paths.downloadArchiveFile)
+            }
+            archiveMessage = "Archive cleared"
+        } catch {
+            archiveMessage = "Could not clear archive"
         }
     }
 }
@@ -469,40 +488,6 @@ struct ThemeOptionCard: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(red: 0.12, green: 0.12, blue: 0.15))
             }
-        }
-    }
-}
-
-// MARK: - SettingsTabButton with Extended Hit Vicinity and Hover
-
-struct SettingsTabButton: View {
-    let tab: SettingsView.SettingsTab
-    let isSelected: Bool
-    let action: () -> Void
-    
-    @State private var isHovered: Bool = false
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 5) {
-                Image(systemName: tab.icon)
-                    .font(.system(size: 17))
-                Text(tab.rawValue)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
-            }
-            .foregroundColor(isSelected ? .accentColor : (isHovered ? .primary : .secondary))
-            .frame(minWidth: 96)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.12) : (isHovered ? Color.secondary.opacity(0.08) : Color.clear))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
         }
     }
 }

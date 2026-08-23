@@ -61,8 +61,16 @@ class YtDlpProcessManager {
                 var args = [
                     "-J",
                     "--flat-playlist",
-                    "--no-warnings"
+                    "--no-warnings",
+                    "--force-ipv4",
+                    "--socket-timeout", "10",
+                    "--retries", "1",
+                    "--extractor-retries", "1"
                 ]
+
+                if YtDlpProcessManager.shouldForceSingleVideo(for: url) {
+                    args.append("--no-playlist")
+                }
                 
                 if browserCookies != "none" && !browserCookies.isEmpty {
                     args.append(contentsOf: ["--cookies-from-browser", browserCookies])
@@ -87,11 +95,42 @@ class YtDlpProcessManager {
                 
                 do {
                     try process.run()
+
+                    let timeoutLock = NSLock()
+                    var didTimeOut = false
+                    let timeoutTask = DispatchWorkItem {
+                        timeoutLock.lock()
+                        defer { timeoutLock.unlock() }
+
+                        guard process.isRunning else { return }
+                        didTimeOut = true
+                        process.terminate()
+                    }
+                    DispatchQueue.global(qos: .userInitiated).asyncAfter(
+                        deadline: .now() + 30,
+                        execute: timeoutTask
+                    )
                     
                     let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
                     let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
                     
                     process.waitUntilExit()
+                    timeoutTask.cancel()
+
+                    timeoutLock.lock()
+                    let sourceCheckTimedOut = didTimeOut
+                    timeoutLock.unlock()
+
+                    if sourceCheckTimedOut {
+                        continuation.resume(throwing: NSError(
+                            domain: "YtDlpProcessManager",
+                            code: -2,
+                            userInfo: [
+                                NSLocalizedDescriptionKey: "Source check timed out after 30 seconds. Check your connection, update yt-dlp, then try again."
+                            ]
+                        ))
+                        return
+                    }
                     
                     if process.terminationStatus == 0 {
                         do {
@@ -124,7 +163,10 @@ class YtDlpProcessManager {
                                     playlistId: dict["playlist_id"] as? String,
                                     playlistCount: dict["playlist_count"] as? Int,
                                     entries: nil,
-                                    isLive: dict["is_live"] as? Bool
+                                    isLive: dict["is_live"] as? Bool,
+                                    height: dict["height"] as? Int,
+                                    width: dict["width"] as? Int,
+                                    resolution: dict["resolution"] as? String
                                 )
                                 continuation.resume(returning: fallbackInfo)
                             } else {
@@ -144,6 +186,18 @@ class YtDlpProcessManager {
                 }
             }
         }
+    }
+
+    private static func shouldForceSingleVideo(for urlString: String) -> Bool {
+        guard let url = URL(string: urlString),
+              let host = url.host?.lowercased() else { return false }
+
+        let isYouTube = host == "youtube.com" || host.hasSuffix(".youtube.com") || host == "youtu.be"
+        guard isYouTube else { return false }
+
+        // A copied watch/share link can carry a playlist query parameter even
+        // when the user asked for one video. Only /playlist links are explicit.
+        return !url.path.lowercased().hasPrefix("/playlist")
     }
     
     // MARK: - Download Execution
@@ -184,6 +238,8 @@ class YtDlpProcessManager {
         process.environment = environment
         
         var detectedOutputPath: String? = nil
+        var recentErrorOutput = ""
+        let outputStateLock = NSLock()
         let regexProgress = try? NSRegularExpression(pattern: #"\b(\d+(?:\.\d+)?)%\s+of\s+(~?\s*\d+(?:\.\d+)?[KMGTP]?i?B)(?:\s+at\s+(\d+(?:\.\d+)?[KMGTP]?i?B/s))?(?:\s+ETA\s+(\d+:\d+(?::\d+)?|\d+s))?"#, options: .caseInsensitive)
         
         let handleLine: (String) -> Void = { line in
@@ -194,18 +250,27 @@ class YtDlpProcessManager {
             
             if trimmed.contains("[download] Destination: ") {
                 let path = trimmed.replacingOccurrences(of: "[download] Destination: ", with: "").trimmingCharacters(in: .whitespaces)
+                outputStateLock.lock()
                 detectedOutputPath = path
+                outputStateLock.unlock()
                 onProgress(DownloadProgress(progress: 0.0, speed: "", eta: "", downloadedBytes: 0, totalBytes: 0, totalBytesEstimated: false, status: .downloading, outputPath: path))
             } else if trimmed.contains("[Merger] Merging formats into \"") {
                 if let start = trimmed.range(of: "\"", options: .backwards),
                    let firstQuote = trimmed.range(of: "\"") {
                     let path = String(trimmed[firstQuote.upperBound..<start.lowerBound])
+                    outputStateLock.lock()
                     detectedOutputPath = path
+                    outputStateLock.unlock()
                 }
-                onProgress(DownloadProgress(progress: 0.98, speed: "", eta: "", downloadedBytes: 0, totalBytes: 0, totalBytesEstimated: false, status: .processing, outputPath: detectedOutputPath))
+                outputStateLock.lock()
+                let outputPath = detectedOutputPath
+                outputStateLock.unlock()
+                onProgress(DownloadProgress(progress: 0.98, speed: "", eta: "", downloadedBytes: 0, totalBytes: 0, totalBytesEstimated: false, status: .processing, outputPath: outputPath))
             } else if trimmed.contains("[ExtractAudio] Destination: ") {
                 let path = trimmed.replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "").trimmingCharacters(in: .whitespaces)
+                outputStateLock.lock()
                 detectedOutputPath = path
+                outputStateLock.unlock()
             }
             
             if let regex = regexProgress {
@@ -235,6 +300,10 @@ class YtDlpProcessManager {
                     let totalBytes = self.parseBytes(from: totalSizeStr)
                     let downloadedBytes = Int64(Double(totalBytes) * percent)
                     
+                    outputStateLock.lock()
+                    let outputPath = detectedOutputPath
+                    outputStateLock.unlock()
+
                     onProgress(DownloadProgress(
                         progress: percent,
                         speed: speedStr,
@@ -243,17 +312,25 @@ class YtDlpProcessManager {
                         totalBytes: totalBytes,
                         totalBytesEstimated: isEstimated,
                         status: percent >= 1.0 ? .processing : .downloading,
-                        outputPath: detectedOutputPath
+                        outputPath: outputPath
                     ))
                 }
             }
         }
         
-        let setupPipeReading = { (pipe: Pipe) in
+        let setupPipeReading = { (pipe: Pipe, capturesErrors: Bool) in
             pipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
                 if let str = String(data: data, encoding: .utf8) {
+                    if capturesErrors {
+                        outputStateLock.lock()
+                        recentErrorOutput.append(str)
+                        if recentErrorOutput.count > 8_000 {
+                            recentErrorOutput = String(recentErrorOutput.suffix(8_000))
+                        }
+                        outputStateLock.unlock()
+                    }
                     let lines = str.components(separatedBy: CharacterSet(charactersIn: "\r\n"))
                     for l in lines {
                         if !l.isEmpty {
@@ -264,8 +341,8 @@ class YtDlpProcessManager {
             }
         }
         
-        setupPipeReading(stdoutPipe)
-        setupPipeReading(stderrPipe)
+        setupPipeReading(stdoutPipe, false)
+        setupPipeReading(stderrPipe, true)
         
         do {
             try process.run()
@@ -275,14 +352,26 @@ class YtDlpProcessManager {
                 process.waitUntilExit()
                 stdoutPipe.fileHandleForReading.readabilityHandler = nil
                 stderrPipe.fileHandleForReading.readabilityHandler = nil
+
+                outputStateLock.lock()
+                let outputPath = detectedOutputPath
+                let errorOutput = recentErrorOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+                outputStateLock.unlock()
                 
                 if process.terminationStatus == 0 {
-                    onCompletion(.success(detectedOutputPath))
+                    onCompletion(.success(outputPath))
                 } else {
+                    let errorLines = errorOutput
+                        .components(separatedBy: .newlines)
+                        .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                    let usefulError = errorLines.suffix(4).joined(separator: "\n")
+                    let message = usefulError.isEmpty
+                        ? "Download failed with exit code \(process.terminationStatus)"
+                        : usefulError
                     let err = NSError(
                         domain: "YtDlpProcessManager",
                         code: Int(process.terminationStatus),
-                        userInfo: [NSLocalizedDescriptionKey: "Download failed with exit code \(process.terminationStatus)"]
+                        userInfo: [NSLocalizedDescriptionKey: message]
                     )
                     onCompletion(.failure(err))
                 }
@@ -302,7 +391,8 @@ class YtDlpProcessManager {
         
         args.append(contentsOf: [
             "--newline",
-            "--no-colors"
+            "--no-colors",
+            "--force-ipv4"
         ])
         
         let outputTemplate = "\(settings.downloadDirectory)/\(settings.filenameTemplate)"
@@ -326,24 +416,32 @@ class YtDlpProcessManager {
             args.append(contentsOf: ["--ffmpeg-location", ffmpegDir])
         }
         
-        if settings.embedThumbnail {
+        let overrides = item.optionOverrides
+
+        if overrides?.embedThumbnail ?? settings.embedThumbnail {
             args.append("--embed-thumbnail")
         }
-        if settings.embedMetadata {
+        if overrides?.embedMetadata ?? settings.embedMetadata {
             args.append("--embed-metadata")
         }
-        if settings.embedChapters {
+        if overrides?.embedChapters ?? settings.embedChapters {
             args.append("--embed-chapters")
         }
+
+        if overrides?.splitChapters == true {
+            args.append("--split-chapters")
+        }
         
-        if settings.embedSubtitles {
+        if overrides?.embedSubtitles ?? settings.embedSubtitles {
+            let language = overrides?.subtitleLanguage ?? settings.subtitleLanguage
             args.append(contentsOf: [
                 "--embed-subs",
-                "--sub-langs", settings.subtitleLanguage.isEmpty ? "all" : settings.subtitleLanguage
+                "--sub-langs", language.isEmpty ? "all" : language
             ])
         }
         
-        if settings.sponsorBlockEnabled && !settings.sponsorBlockCategories.isEmpty {
+        if overrides?.sponsorBlockEnabled ?? settings.sponsorBlockEnabled,
+           !settings.sponsorBlockCategories.isEmpty {
             args.append(contentsOf: [
                 "--sponsorblock-remove", settings.sponsorBlockCategories
             ])
@@ -357,6 +455,10 @@ class YtDlpProcessManager {
         
         if settings.rateLimitKbps > 0 {
             args.append(contentsOf: ["--limit-rate", "\(settings.rateLimitKbps)K"])
+        }
+
+        if settings.skipPreviouslyDownloaded {
+            args.append(contentsOf: ["--download-archive", Constants.Paths.downloadArchiveFile.path])
         }
         
         if !settings.customArguments.trimmingCharacters(in: .whitespaces).isEmpty {

@@ -40,7 +40,7 @@ struct QuickActionBar: View {
     @ViewBuilder
     private var engineStatusPill: some View {
         Button(action: {
-            appState.selectedTab = .settings
+            appState.selectedTab = .settingsEngine
         }) {
             HStack(spacing: 6) {
                 Circle()

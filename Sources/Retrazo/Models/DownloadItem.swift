@@ -1,5 +1,16 @@
 import Foundation
 
+struct DownloadOptionOverrides: Codable, Equatable {
+    var embedThumbnail: Bool
+    var embedMetadata: Bool
+    var embedChapters: Bool
+    var embedSubtitles: Bool
+    var subtitleLanguage: String
+    var sponsorBlockEnabled: Bool
+    /// Optional so download history saved by older versions remains decodable.
+    var splitChapters: Bool?
+}
+
 enum DownloadStatus: String, Codable, CaseIterable {
     case queued = "Queued"
     case analyzing = "Analyzing"
@@ -45,6 +56,7 @@ struct DownloadItem: Codable, Identifiable, Equatable {
     
     var customArgs: [String]
     var preset: DownloadPreset
+    var optionOverrides: DownloadOptionOverrides?
     var isPlaylist: Bool
     var playlistCount: Int?
     var playlistIndex: Int?
@@ -63,7 +75,7 @@ struct DownloadItem: Codable, Identifiable, Equatable {
         downloadedBytes: Int64 = 0,
         totalBytes: Int64 = 0,
         totalBytesEstimated: Bool = false,
-        formatDescription: String = "Best Quality",
+        formatDescription: String = "Source Maximum",
         outputPath: String? = nil,
         errorMessage: String? = nil,
         logs: [String] = [],
@@ -71,6 +83,7 @@ struct DownloadItem: Codable, Identifiable, Equatable {
         completedAt: Date? = nil,
         customArgs: [String] = [],
         preset: DownloadPreset = .bestVideo,
+        optionOverrides: DownloadOptionOverrides? = nil,
         isPlaylist: Bool = false,
         playlistCount: Int? = nil,
         playlistIndex: Int? = nil
@@ -96,6 +109,7 @@ struct DownloadItem: Codable, Identifiable, Equatable {
         self.completedAt = completedAt
         self.customArgs = customArgs
         self.preset = preset
+        self.optionOverrides = optionOverrides
         self.isPlaylist = isPlaylist
         self.playlistCount = playlistCount
         self.playlistIndex = playlistIndex
