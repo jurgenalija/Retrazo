@@ -1,0 +1,32 @@
+# Xcode / Swift PM
+.build/
+.swiftpm/
+Packages/
+Package.pins
+Package.resolved
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+
+# Build artifacts
+build/
+*.app/
+*.dSYM/
+*.dmg
+*.zip
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# User and Temporary files
+xcuserdata/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+*.log
