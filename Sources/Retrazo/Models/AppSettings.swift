@@ -1,10 +1,43 @@
 import SwiftUI
 import Combine
+import AppKit
+
+enum AppTheme: String, Codable, CaseIterable, Identifiable {
+    case system = "System"
+    case light = "Light"
+    case dark = "Dark"
+    
+    var id: String { rawValue }
+    
+    var icon: String {
+        switch self {
+        case .system: return "circle.righthalf.filled"
+        case .light: return "sun.max.fill"
+        case .dark: return "moon.fill"
+        }
+    }
+    
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
 
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
     
     private let defaults = UserDefaults.standard
+    
+    // Appearance
+    @Published var appTheme: AppTheme {
+        didSet {
+            defaults.set(appTheme.rawValue, forKey: "appTheme")
+            applyTheme()
+        }
+    }
     
     // Download Locations
     @Published var downloadDirectory: String {
@@ -95,6 +128,9 @@ class AppSettings: ObservableObject {
     }
     
     init() {
+        let savedThemeString = defaults.string(forKey: "appTheme") ?? AppTheme.system.rawValue
+        self.appTheme = AppTheme(rawValue: savedThemeString) ?? .system
+        
         self.downloadDirectory = defaults.string(forKey: "downloadDirectory") ?? Constants.Paths.defaultDownloadDirectory.path
         self.defaultPresetId = defaults.string(forKey: "defaultPresetId") ?? DownloadPreset.bestVideo.id
         self.maxConcurrentDownloads = defaults.object(forKey: "maxConcurrentDownloads") != nil ? defaults.integer(forKey: "maxConcurrentDownloads") : 3
@@ -115,13 +151,29 @@ class AppSettings: ObservableObject {
         self.rateLimitKbps = defaults.integer(forKey: "rateLimitKbps")
         self.clipboardMonitoring = defaults.object(forKey: "clipboardMonitoring") != nil ? defaults.bool(forKey: "clipboardMonitoring") : true
         self.soundNotifications = defaults.object(forKey: "soundNotifications") != nil ? defaults.bool(forKey: "soundNotifications") : true
+        
+        applyTheme()
     }
     
     var effectiveDownloadURL: URL {
         URL(fileURLWithPath: downloadDirectory)
     }
     
+    func applyTheme() {
+        DispatchQueue.main.async {
+            switch self.appTheme {
+            case .system:
+                NSApp.appearance = nil
+            case .light:
+                NSApp.appearance = NSAppearance(named: .aqua)
+            case .dark:
+                NSApp.appearance = NSAppearance(named: .darkAqua)
+            }
+        }
+    }
+    
     func resetToDefaults() {
+        appTheme = .system
         downloadDirectory = Constants.Paths.defaultDownloadDirectory.path
         defaultPresetId = DownloadPreset.bestVideo.id
         maxConcurrentDownloads = 3
@@ -142,5 +194,6 @@ class AppSettings: ObservableObject {
         rateLimitKbps = 0
         clipboardMonitoring = true
         soundNotifications = true
+        applyTheme()
     }
 }

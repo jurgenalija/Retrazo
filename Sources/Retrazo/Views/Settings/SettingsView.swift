@@ -26,22 +26,13 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Tab Selector
-            HStack(spacing: 20) {
+            HStack(spacing: 12) {
                 ForEach(SettingsTab.allCases) { tab in
-                    Button(action: { selectedTab = tab }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 16))
-                            Text(tab.rawValue)
-                                .font(.system(size: 11, weight: selectedTab == tab ? .semibold : .regular))
-                        }
-                        .foregroundColor(selectedTab == tab ? .accentColor : .secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(selectedTab == tab ? Color.accentColor.opacity(0.12) : Color.clear)
-                        .cornerRadius(8)
-                    }
-                    .buttonStyle(.plain)
+                    SettingsTabButton(
+                        tab: tab,
+                        isSelected: selectedTab == tab,
+                        action: { selectedTab = tab }
+                    )
                 }
             }
             .padding(.top, 14)
@@ -74,6 +65,23 @@ struct SettingsView: View {
     
     private var generalSection: some View {
         VStack(alignment: .leading, spacing: 18) {
+            GroupBox(label: Label("Appearance", systemImage: "paintbrush")) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("Theme", selection: $settings.appTheme) {
+                        ForEach(AppTheme.allCases) { theme in
+                            HStack {
+                                Image(systemName: theme.icon)
+                                Text(theme.rawValue)
+                            }
+                            .tag(theme)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 320)
+                }
+                .padding(8)
+            }
+            
             GroupBox(label: Label("Download Location", systemImage: "folder")) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -312,6 +320,40 @@ struct SettingsView: View {
         
         if panel.runModal() == .OK, let url = panel.url {
             binding.wrappedValue = url.path
+        }
+    }
+}
+
+// MARK: - SettingsTabButton with Extended Hit Vicinity and Hover
+
+struct SettingsTabButton: View {
+    let tab: SettingsView.SettingsTab
+    let isSelected: Bool
+    let action: () -> Void
+    
+    @State private var isHovered: Bool = false
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: tab.icon)
+                    .font(.system(size: 17))
+                Text(tab.rawValue)
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+            }
+            .foregroundColor(isSelected ? .accentColor : (isHovered ? .primary : .secondary))
+            .frame(minWidth: 96)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? Color.accentColor.opacity(0.12) : (isHovered ? Color.secondary.opacity(0.08) : Color.clear))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
         }
     }
 }

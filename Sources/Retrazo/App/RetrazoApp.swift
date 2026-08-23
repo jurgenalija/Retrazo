@@ -13,6 +13,7 @@ struct RetrazoApp: App {
             MainView()
                 .frame(minWidth: 800, minHeight: 520)
                 .background(VisualEffectBackground())
+                .preferredColorScheme(settings.appTheme.colorScheme)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
@@ -32,7 +33,7 @@ struct RetrazoApp: App {
                 .keyboardShortcut("v", modifiers: [.command, .shift])
             }
             
-            // View Navigation
+            // View Navigation & Appearance
             CommandGroup(after: .sidebar) {
                 Button("Downloads") {
                     appState.selectedTab = .downloads
@@ -48,6 +49,23 @@ struct RetrazoApp: App {
                     appState.selectedTab = .settings
                 }
                 .keyboardShortcut("3", modifiers: .command)
+                
+                Divider()
+                
+                Menu("Appearance") {
+                    ForEach(AppTheme.allCases) { theme in
+                        Button(action: {
+                            settings.appTheme = theme
+                        }) {
+                            HStack {
+                                Text(theme.rawValue)
+                                if settings.appTheme == theme {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
             }
             
             // Actions
