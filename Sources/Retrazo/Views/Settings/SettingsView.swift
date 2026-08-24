@@ -50,17 +50,40 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             // macOS Native Appearance Card Selector
             GroupBox(label: Label("Appearance", systemImage: "paintbrush")) {
-                HStack(spacing: 20) {
-                    ForEach(AppTheme.allCases) { theme in
-                        ThemeOptionCard(
-                            theme: theme,
-                            isSelected: settings.appTheme == theme,
-                            onSelect: {
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    settings.appTheme = theme
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 20) {
+                        ForEach(AppTheme.allCases) { theme in
+                            ThemeOptionCard(
+                                theme: theme,
+                                isSelected: settings.appTheme == theme,
+                                onSelect: {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        settings.appTheme = theme
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 9) {
+                        Text("Accent Color")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+
+                        HStack(spacing: 12) {
+                            ForEach(AppAccentColor.allCases) { accent in
+                                AccentColorSwatch(
+                                    accent: accent,
+                                    isSelected: settings.appAccentColor == accent
+                                ) {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        settings.appAccentColor = accent
+                                    }
                                 }
                             }
-                        )
+                        }
                     }
                 }
                 .padding(.vertical, 8)
@@ -343,6 +366,52 @@ struct SettingsView: View {
         } catch {
             archiveMessage = "Could not clear archive"
         }
+    }
+}
+
+// MARK: - Accent Color Swatch
+
+struct AccentColorSwatch: View {
+    let accent: AppAccentColor
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            ZStack {
+                Circle()
+                    .fill(swatchStyle)
+                    .frame(width: 25, height: 25)
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(accent == .yellow ? .black.opacity(0.7) : .white)
+                }
+            }
+            .padding(3)
+            .background {
+                Circle()
+                    .stroke(isSelected ? accent.color : Color.clear, lineWidth: 2)
+            }
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(accent.rawValue)
+        .accessibilityLabel("\(accent.rawValue) accent color")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var swatchStyle: AnyShapeStyle {
+        if accent == .system {
+            return AnyShapeStyle(
+                AngularGradient(
+                    colors: [.blue, .purple, .pink, .red, .orange, .yellow, .green, .blue],
+                    center: .center
+                )
+            )
+        }
+        return AnyShapeStyle(accent.color)
     }
 }
 

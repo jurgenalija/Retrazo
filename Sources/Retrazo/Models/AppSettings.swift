@@ -26,6 +26,34 @@ enum AppTheme: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum AppAccentColor: String, Codable, CaseIterable, Identifiable {
+    case system = "System"
+    case blue = "Blue"
+    case purple = "Purple"
+    case pink = "Pink"
+    case red = "Red"
+    case orange = "Orange"
+    case yellow = "Yellow"
+    case green = "Green"
+    case graphite = "Graphite"
+
+    var id: String { rawValue }
+
+    var color: Color {
+        switch self {
+        case .system: return Color(nsColor: .controlAccentColor)
+        case .blue: return Color(red: 0 / 255, green: 122 / 255, blue: 255 / 255)
+        case .purple: return Color(red: 175 / 255, green: 82 / 255, blue: 222 / 255)
+        case .pink: return Color(red: 255 / 255, green: 45 / 255, blue: 85 / 255)
+        case .red: return Color(red: 255 / 255, green: 59 / 255, blue: 48 / 255)
+        case .orange: return Color(red: 255 / 255, green: 149 / 255, blue: 0 / 255)
+        case .yellow: return Color(red: 255 / 255, green: 204 / 255, blue: 0 / 255)
+        case .green: return Color(red: 52 / 255, green: 199 / 255, blue: 89 / 255)
+        case .graphite: return Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255)
+        }
+    }
+}
+
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
     
@@ -37,6 +65,10 @@ class AppSettings: ObservableObject {
             defaults.set(appTheme.rawValue, forKey: "appTheme")
             applyTheme()
         }
+    }
+
+    @Published var appAccentColor: AppAccentColor {
+        didSet { defaults.set(appAccentColor.rawValue, forKey: "appAccentColor") }
     }
     
     // Download Locations
@@ -138,6 +170,8 @@ class AppSettings: ObservableObject {
     init() {
         let savedThemeString = defaults.string(forKey: "appTheme") ?? AppTheme.system.rawValue
         self.appTheme = AppTheme(rawValue: savedThemeString) ?? .system
+        let savedAccentString = defaults.string(forKey: "appAccentColor") ?? AppAccentColor.system.rawValue
+        self.appAccentColor = AppAccentColor(rawValue: savedAccentString) ?? .system
         
         self.downloadDirectory = defaults.string(forKey: "downloadDirectory") ?? Constants.Paths.defaultDownloadDirectory.path
         self.defaultPresetId = defaults.string(forKey: "defaultPresetId") ?? DownloadPreset.bestVideo.id
@@ -185,6 +219,7 @@ class AppSettings: ObservableObject {
     
     func resetToDefaults() {
         appTheme = .system
+        appAccentColor = .system
         downloadDirectory = Constants.Paths.defaultDownloadDirectory.path
         defaultPresetId = DownloadPreset.bestVideo.id
         maxConcurrentDownloads = 3

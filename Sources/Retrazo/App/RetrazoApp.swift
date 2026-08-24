@@ -14,6 +14,8 @@ struct RetrazoApp: App {
             MainView()
                 .frame(minWidth: 800, minHeight: 520)
                 .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+                .tint(settings.appAccentColor.color)
+                .accentColor(settings.appAccentColor.color)
                 .preferredColorScheme(settings.appTheme.colorScheme)
         }
         .windowStyle(.titleBar)

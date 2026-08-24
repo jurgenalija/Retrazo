@@ -91,7 +91,9 @@ final class AppUpdateManager: ObservableObject {
             }
 
             if httpResponse.statusCode == 404 {
-                throw updateError("No GitHub Release has been published yet.")
+                throw updateError(
+                    "GitHub could not access the Retrazo releases. The repository must be public for automatic updates."
+                )
             }
             guard (200...299).contains(httpResponse.statusCode) else {
                 throw updateError("GitHub update check failed (HTTP \(httpResponse.statusCode)).")

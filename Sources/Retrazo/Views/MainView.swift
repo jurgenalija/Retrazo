@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var appState = AppState.shared
     @ObservedObject var queueManager = DownloadQueueManager.shared
     @ObservedObject var binaryManager = BinaryManager.shared
@@ -13,7 +14,10 @@ struct MainView: View {
                 Section("Media Downloader") {
                     NavigationLink(value: NavigationTab.downloads) {
                         HStack {
-                            Label(NavigationTab.downloads.rawValue, systemImage: NavigationTab.downloads.icon)
+                            SidebarLabel(
+                                tab: .downloads,
+                                isSelected: appState.selectedTab == .downloads
+                            )
                             Spacer()
                             if activeCount > 0 {
                                 Text("\(activeCount)")
@@ -29,7 +33,10 @@ struct MainView: View {
                     
                     NavigationLink(value: NavigationTab.history) {
                         HStack {
-                            Label(NavigationTab.history.rawValue, systemImage: NavigationTab.history.icon)
+                            SidebarLabel(
+                                tab: .history,
+                                isSelected: appState.selectedTab == .history
+                            )
                             Spacer()
                             if !queueManager.historyDownloads.isEmpty {
                                 Text("\(queueManager.historyDownloads.count)")
@@ -42,12 +49,32 @@ struct MainView: View {
                 
                 Section("Settings") {
                     NavigationLink(value: NavigationTab.settingsGeneral) {
-                        Label(NavigationTab.settingsGeneral.rawValue, systemImage: NavigationTab.settingsGeneral.icon)
+                        SidebarLabel(
+                            tab: .settingsGeneral,
+                            isSelected: appState.selectedTab == .settingsGeneral
+                        )
+                    }
+
+                    NavigationLink(value: NavigationTab.settingsFormats) {
+                        SidebarLabel(
+                            tab: .settingsFormats,
+                            isSelected: appState.selectedTab == .settingsFormats
+                        )
+                    }
+
+                    NavigationLink(value: NavigationTab.settingsAdvanced) {
+                        SidebarLabel(
+                            tab: .settingsAdvanced,
+                            isSelected: appState.selectedTab == .settingsAdvanced
+                        )
                     }
 
                     NavigationLink(value: NavigationTab.settingsEngine) {
                         HStack {
-                            Label(NavigationTab.settingsEngine.rawValue, systemImage: NavigationTab.settingsEngine.icon)
+                            SidebarLabel(
+                                tab: .settingsEngine,
+                                isSelected: appState.selectedTab == .settingsEngine
+                            )
                             Spacer()
                             if binaryManager.isUpdateAvailable || appUpdateManager.isUpdateAvailable {
                                 Circle()
@@ -56,23 +83,20 @@ struct MainView: View {
                             }
                         }
                     }
-
-                    NavigationLink(value: NavigationTab.settingsFormats) {
-                        Label(NavigationTab.settingsFormats.rawValue, systemImage: NavigationTab.settingsFormats.icon)
-                    }
-
-                    NavigationLink(value: NavigationTab.settingsAdvanced) {
-                        Label(NavigationTab.settingsAdvanced.rawValue, systemImage: NavigationTab.settingsAdvanced.icon)
-                    }
                 }
 
                 Section("Retrazo") {
                     NavigationLink(value: NavigationTab.about) {
-                        Label(NavigationTab.about.rawValue, systemImage: NavigationTab.about.icon)
+                        SidebarLabel(
+                            tab: .about,
+                            isSelected: appState.selectedTab == .about
+                        )
                     }
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(finderSidebarBackground.ignoresSafeArea())
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } detail: {
             // Detail Area
@@ -95,7 +119,7 @@ struct MainView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+            .background(finderContentBackground.ignoresSafeArea())
             .navigationTitle(appState.selectedTab.rawValue)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
@@ -129,5 +153,37 @@ struct MainView: View {
     
     private var activeCount: Int {
         queueManager.activeDownloads.filter { $0.status.isActive }.count
+    }
+
+    private var finderSidebarBackground: Color {
+        if colorScheme == .dark {
+            // Matches Finder's opaque dark sidebar surface on current macOS.
+            return Color(red: 40 / 255, green: 40 / 255, blue: 40 / 255)
+        }
+        return Color(nsColor: .windowBackgroundColor)
+    }
+
+    private var finderContentBackground: Color {
+        if colorScheme == .dark {
+            // NSColor.windowBackgroundColor resolves to Finder's #1E1E1E content surface.
+            return Color(red: 30 / 255, green: 30 / 255, blue: 30 / 255)
+        }
+        return Color(nsColor: .windowBackgroundColor)
+    }
+}
+
+private struct SidebarLabel: View {
+    @ObservedObject private var settings = AppSettings.shared
+    let tab: NavigationTab
+    let isSelected: Bool
+
+    var body: some View {
+        Label {
+            Text(tab.rawValue)
+        } icon: {
+            Image(systemName: tab.icon)
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(isSelected ? Color.primary : settings.appAccentColor.color)
+        }
     }
 }
