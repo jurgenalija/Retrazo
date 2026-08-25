@@ -1,7 +1,7 @@
 import AppKit
 import Combine
 
-class ClipboardWatcher: ObservableObject {
+final class ClipboardWatcher: ObservableObject {
     static let shared = ClipboardWatcher()
     
     @Published var lastDetectedURL: String? = nil
@@ -9,18 +9,31 @@ class ClipboardWatcher: ObservableObject {
     private var timer: Timer?
     private var lastChangeCount = 0
     private var lastProcessedURL: String = ""
+    private var settingsCancellable: AnyCancellable?
     
     init() {
-        start()
+        settingsCancellable = AppSettings.shared.$clipboardMonitoring
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isEnabled in
+                if isEnabled {
+                    self?.start()
+                } else {
+                    self?.stop()
+                }
+            }
     }
     
     func start() {
-        timer?.invalidate()
+        guard timer == nil else { return }
         lastChangeCount = NSPasteboard.general.changeCount
         
-        timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.checkPasteboard()
         }
+        timer.tolerance = 0.75
+        RunLoop.main.add(timer, forMode: .default)
+        self.timer = timer
     }
     
     func stop() {
@@ -29,8 +42,6 @@ class ClipboardWatcher: ObservableObject {
     }
     
     private func checkPasteboard() {
-        guard AppSettings.shared.clipboardMonitoring else { return }
-        
         let pasteboard = NSPasteboard.general
         guard pasteboard.changeCount != lastChangeCount else { return }
         lastChangeCount = pasteboard.changeCount
@@ -41,9 +52,7 @@ class ClipboardWatcher: ObservableObject {
         
         if isValidMediaURL(string) {
             lastProcessedURL = string
-            DispatchQueue.main.async {
-                self.lastDetectedURL = string
-            }
+            lastDetectedURL = string
         }
     }
     

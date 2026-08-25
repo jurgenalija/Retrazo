@@ -1,10 +1,14 @@
 import SwiftUI
 import AppKit
 
-struct DownloadRowView: View {
+struct DownloadRowView: View, Equatable {
     let item: DownloadItem
-    @ObservedObject var queueManager = DownloadQueueManager.shared
-    @ObservedObject var appState = AppState.shared
+    private let queueManager = DownloadQueueManager.shared
+    private let appState = AppState.shared
+
+    static func == (lhs: DownloadRowView, rhs: DownloadRowView) -> Bool {
+        lhs.item == rhs.item
+    }
     
     var body: some View {
         HStack(alignment: .center, spacing: 14) {

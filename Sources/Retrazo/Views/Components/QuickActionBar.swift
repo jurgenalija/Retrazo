@@ -3,7 +3,7 @@ import SwiftUI
 struct QuickActionBar: View {
     @ObservedObject var queueManager = DownloadQueueManager.shared
     @ObservedObject var binaryManager = BinaryManager.shared
-    @ObservedObject var appState = AppState.shared
+    private let appState = AppState.shared
     
     var body: some View {
         HStack(spacing: 12) {

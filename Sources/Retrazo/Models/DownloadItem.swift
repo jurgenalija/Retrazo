@@ -157,7 +157,14 @@ struct DownloadItem: Codable, Identifiable, Equatable {
         lhs.progress == rhs.progress &&
         lhs.speed == rhs.speed &&
         lhs.eta == rhs.eta &&
+        lhs.downloadedBytes == rhs.downloadedBytes &&
+        lhs.totalBytes == rhs.totalBytes &&
+        lhs.totalBytesEstimated == rhs.totalBytesEstimated &&
         lhs.title == rhs.title &&
+        lhs.uploader == rhs.uploader &&
+        lhs.thumbnailUrl == rhs.thumbnailUrl &&
+        lhs.outputPath == rhs.outputPath &&
+        lhs.errorMessage == rhs.errorMessage &&
         lhs.logs.count == rhs.logs.count
     }
 }

@@ -3,7 +3,6 @@ import SwiftUI
 struct MainView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var appState = AppState.shared
-    @ObservedObject var queueManager = DownloadQueueManager.shared
     @ObservedObject var binaryManager = BinaryManager.shared
     @ObservedObject var appUpdateManager = AppUpdateManager.shared
     
@@ -19,15 +18,7 @@ struct MainView: View {
                                 isSelected: appState.selectedTab == .downloads
                             )
                             Spacer()
-                            if activeCount > 0 {
-                                Text("\(activeCount)")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.accentColor)
-                                    .foregroundColor(.white)
-                                    .clipShape(Capsule())
-                            }
+                            ActiveDownloadCountBadge()
                         }
                     }
                     
@@ -38,11 +29,7 @@ struct MainView: View {
                                 isSelected: appState.selectedTab == .history
                             )
                             Spacer()
-                            if !queueManager.historyDownloads.isEmpty {
-                                Text("\(queueManager.historyDownloads.count)")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
-                            }
+                            DownloadHistoryCountBadge()
                         }
                     }
                 }
@@ -151,10 +138,6 @@ struct MainView: View {
         }
     }
     
-    private var activeCount: Int {
-        queueManager.activeDownloads.filter { $0.status.isActive }.count
-    }
-
     private var finderSidebarBackground: Color {
         if colorScheme == .dark {
             // Matches Finder's opaque dark sidebar surface on current macOS.
@@ -169,6 +152,35 @@ struct MainView: View {
             return Color(red: 30 / 255, green: 30 / 255, blue: 30 / 255)
         }
         return Color(nsColor: .windowBackgroundColor)
+    }
+}
+
+private struct ActiveDownloadCountBadge: View {
+    @ObservedObject private var queueManager = DownloadQueueManager.shared
+
+    var body: some View {
+        let count = queueManager.activeDownloads.lazy.filter { $0.status.isActive }.count
+        if count > 0 {
+            Text("\(count)")
+                .font(.system(size: 11, weight: .bold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.accentColor)
+                .foregroundColor(.white)
+                .clipShape(Capsule())
+        }
+    }
+}
+
+private struct DownloadHistoryCountBadge: View {
+    @ObservedObject private var queueManager = DownloadQueueManager.shared
+
+    var body: some View {
+        if !queueManager.historyDownloads.isEmpty {
+            Text("\(queueManager.historyDownloads.count)")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+        }
     }
 }
 

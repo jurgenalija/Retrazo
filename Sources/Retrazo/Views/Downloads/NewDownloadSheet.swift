@@ -417,24 +417,27 @@ struct NewDownloadSheet: View {
     // MARK: - Video Options Section
 
     private var videoOptionsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let detectedQualities = mediaInfo?.detectedVideoQualities ?? []
+        let maximumHeight = detectedQualities.first?.height ?? mediaInfo?.height
+
+        return VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     optionTitle("Resolution")
 
                     Spacer()
 
-                    if let maxH = mediaInfo?.maxDetectedHeight {
+                    if let maxH = maximumHeight {
                         Label("Source maximum \(maxH)p", systemImage: "checkmark.shield.fill")
                             .font(.caption)
                             .foregroundColor(.green)
                     }
                 }
 
-                if let detected = mediaInfo?.detectedVideoQualities, !detected.isEmpty {
+                if !detectedQualities.isEmpty {
                     VStack(spacing: 6) {
-                        ForEach(detected) { quality in
-                            let isSourceMaximum = quality.height == mediaInfo?.maxDetectedHeight
+                        ForEach(detectedQualities) { quality in
+                            let isSourceMaximum = quality.height == maximumHeight
                             let isSelected = selectedQualityHeight == quality.height
                             qualitySelectionRow(
                                 title: quality.label,

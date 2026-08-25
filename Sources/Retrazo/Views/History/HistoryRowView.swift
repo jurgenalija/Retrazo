@@ -3,8 +3,13 @@ import AppKit
 
 struct HistoryRowView: View {
     let item: DownloadItem
-    @ObservedObject var queueManager = DownloadQueueManager.shared
-    @ObservedObject var appState = AppState.shared
+    private let queueManager = DownloadQueueManager.shared
+    private let appState = AppState.shared
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
     
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
@@ -157,8 +162,6 @@ struct HistoryRowView: View {
     }
     
     private func formattedDate(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        Self.relativeDateFormatter.localizedString(for: date, relativeTo: Date())
     }
 }

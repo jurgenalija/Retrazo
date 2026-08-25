@@ -12,6 +12,10 @@ class DownloadQueueManager: ObservableObject {
     private var runningTasks: [UUID: ProcessTask] = [:]
     private let settings = AppSettings.shared
     private var cancellables = Set<AnyCancellable>()
+    private let historyPersistenceQueue = DispatchQueue(
+        label: "com.retrazo.history-persistence",
+        qos: .utility
+    )
     
     init() {
         loadHistory()
@@ -190,14 +194,14 @@ class DownloadQueueManager: ObservableObject {
                     }
                 }
             },
-            onLog: { [weak self] line in
+            onLog: { [weak self] lines in
                 Task { @MainActor [weak self] in
                     guard let self = self,
                           let idx = self.activeDownloads.firstIndex(where: { $0.id == id }) else { return }
-                    self.activeDownloads[idx].logs.append(line)
+                    self.activeDownloads[idx].logs.append(contentsOf: lines)
                     // Keep logs manageable
                     if self.activeDownloads[idx].logs.count > 1000 {
-                        self.activeDownloads[idx].logs.removeFirst(200)
+                        self.activeDownloads[idx].logs.removeFirst(self.activeDownloads[idx].logs.count - 800)
                     }
                 }
             },
@@ -259,11 +263,14 @@ class DownloadQueueManager: ObservableObject {
     }
     
     private func saveHistory() {
-        do {
-            let data = try JSONEncoder().encode(historyDownloads)
-            try data.write(to: Constants.Paths.historyFile, options: .atomic)
-        } catch {
-            print("Failed to save download history: \(error)")
+        let snapshot = historyDownloads
+        historyPersistenceQueue.async {
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                try data.write(to: Constants.Paths.historyFile, options: .atomic)
+            } catch {
+                print("Failed to save download history: \(error)")
+            }
         }
     }
     

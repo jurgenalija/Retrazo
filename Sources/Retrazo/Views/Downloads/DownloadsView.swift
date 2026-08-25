@@ -19,6 +19,7 @@ struct DownloadsView: View {
                     LazyVStack(spacing: 10) {
                         ForEach(queueManager.activeDownloads) { item in
                             DownloadRowView(item: item)
+                                .equatable()
                         }
                     }
                     .padding(16)

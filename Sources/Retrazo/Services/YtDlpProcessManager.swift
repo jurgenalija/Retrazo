@@ -206,7 +206,7 @@ class YtDlpProcessManager {
         item: DownloadItem,
         settings: AppSettings,
         onProgress: @escaping (DownloadProgress) -> Void,
-        onLog: @escaping (String) -> Void,
+        onLog: @escaping ([String]) -> Void,
         onCompletion: @escaping (Result<String?, Error>) -> Void
     ) -> ProcessTask? {
         guard let ytDlpPath = BinaryManager.findYtDlpPath(customPath: settings.customYtDlpPath) else {
@@ -240,13 +240,45 @@ class YtDlpProcessManager {
         var detectedOutputPath: String? = nil
         var recentErrorOutput = ""
         let outputStateLock = NSLock()
+        let logDeliveryQueue = DispatchQueue(label: "com.retrazo.process-log-delivery", qos: .utility)
+        var pendingLogs: [String] = []
+        var logFlushScheduled = false
+        var lastProgressEmission = Date.distantPast
         let regexProgress = try? NSRegularExpression(pattern: #"\b(\d+(?:\.\d+)?)%\s+of\s+(~?\s*\d+(?:\.\d+)?[KMGTP]?i?B)(?:\s+at\s+(\d+(?:\.\d+)?[KMGTP]?i?B/s))?(?:\s+ETA\s+(\d+:\d+(?::\d+)?|\d+s))?"#, options: .caseInsensitive)
+
+        let flushPendingLogs: () -> Void = {
+            outputStateLock.lock()
+            let logs = pendingLogs
+            pendingLogs.removeAll(keepingCapacity: true)
+            logFlushScheduled = false
+            outputStateLock.unlock()
+
+            if !logs.isEmpty {
+                onLog(logs)
+            }
+        }
+
+        let enqueueLog: (String) -> Void = { line in
+            outputStateLock.lock()
+            pendingLogs.append(line)
+            let needsFlush = !logFlushScheduled
+            if needsFlush {
+                logFlushScheduled = true
+            }
+            outputStateLock.unlock()
+
+            if needsFlush {
+                logDeliveryQueue.asyncAfter(deadline: .now() + 0.25) {
+                    flushPendingLogs()
+                }
+            }
+        }
         
         let handleLine: (String) -> Void = { line in
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return }
             
-            onLog(trimmed)
+            enqueueLog(trimmed)
             
             if trimmed.contains("[download] Destination: ") {
                 let path = trimmed.replacingOccurrences(of: "[download] Destination: ", with: "").trimmingCharacters(in: .whitespaces)
@@ -300,25 +332,37 @@ class YtDlpProcessManager {
                     let totalBytes = self.parseBytes(from: totalSizeStr)
                     let downloadedBytes = Int64(Double(totalBytes) * percent)
                     
+                    let status: DownloadStatus = percent >= 1.0 ? .processing : .downloading
+                    let now = Date()
                     outputStateLock.lock()
                     let outputPath = detectedOutputPath
+                    let shouldEmit = status == .processing ||
+                        now.timeIntervalSince(lastProgressEmission) >= 0.2
+                    if shouldEmit {
+                        lastProgressEmission = now
+                    }
                     outputStateLock.unlock()
 
-                    onProgress(DownloadProgress(
-                        progress: percent,
-                        speed: speedStr,
-                        eta: etaStr,
-                        downloadedBytes: downloadedBytes,
-                        totalBytes: totalBytes,
-                        totalBytesEstimated: isEstimated,
-                        status: percent >= 1.0 ? .processing : .downloading,
-                        outputPath: outputPath
-                    ))
+                    if shouldEmit {
+                        onProgress(DownloadProgress(
+                            progress: percent,
+                            speed: speedStr,
+                            eta: etaStr,
+                            downloadedBytes: downloadedBytes,
+                            totalBytes: totalBytes,
+                            totalBytesEstimated: isEstimated,
+                            status: status,
+                            outputPath: outputPath
+                        ))
+                    }
                 }
             }
         }
         
         let setupPipeReading = { (pipe: Pipe, capturesErrors: Bool) in
+            let textStateLock = NSLock()
+            var bufferedText = ""
+
             pipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
@@ -331,7 +375,13 @@ class YtDlpProcessManager {
                         }
                         outputStateLock.unlock()
                     }
-                    let lines = str.components(separatedBy: CharacterSet(charactersIn: "\r\n"))
+
+                    textStateLock.lock()
+                    bufferedText.append(str)
+                    var lines = bufferedText.components(separatedBy: CharacterSet(charactersIn: "\r\n"))
+                    bufferedText = lines.popLast() ?? ""
+                    textStateLock.unlock()
+
                     for l in lines {
                         if !l.isEmpty {
                             handleLine(l)
@@ -352,6 +402,12 @@ class YtDlpProcessManager {
                 process.waitUntilExit()
                 stdoutPipe.fileHandleForReading.readabilityHandler = nil
                 stderrPipe.fileHandleForReading.readabilityHandler = nil
+
+                // Deliver any final output before the queue item is completed and
+                // moved out of the active list.
+                logDeliveryQueue.sync {
+                    flushPendingLogs()
+                }
 
                 outputStateLock.lock()
                 let outputPath = detectedOutputPath
