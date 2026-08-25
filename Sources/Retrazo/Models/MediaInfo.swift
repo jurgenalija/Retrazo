@@ -87,7 +87,8 @@ struct DetectedQuality: Identifiable, Hashable, Codable {
     var formattedSize: String? {
         let bytes = filesize ?? filesizeApprox
         guard let b = bytes, b > 0 else { return nil }
-        return ByteCountFormatter.string(fromByteCount: b, countStyle: .file)
+        let formatted = ByteCountFormatter.string(fromByteCount: b, countStyle: .file)
+        return filesize == nil ? "~\(formatted)" : formatted
     }
 }
 
@@ -249,12 +250,54 @@ struct MediaInfo: Codable, Identifiable {
             let width: Int?
             let fps: Double
             let hasHdr: Bool
-            let filesize: Int64?
-            let filesizeApprox: Int64?
+            let estimatedBytes: Int64?
+            let sizeIsApproximate: Bool
             let formatNote: String?
         }
 
         var specs: [StreamSpec] = []
+
+        func estimatedSize(for raw: RawFormat, height: Int?) -> (bytes: Int64, isApproximate: Bool)? {
+            if let filesize = raw.filesize, filesize > 0 {
+                return (filesize, false)
+            }
+            if let filesizeApprox = raw.filesizeApprox, filesizeApprox > 0 {
+                return (filesizeApprox, true)
+            }
+
+            guard let duration, duration > 0 else { return nil }
+
+            let componentBitrate = max(raw.vbr ?? 0, 0) + max(raw.abr ?? 0, 0)
+            let reportedBitrate = (raw.tbr ?? 0) > 0
+                ? raw.tbr
+                : (componentBitrate > 0 ? componentBitrate : nil)
+
+            // Last-resort estimates keep every finite video resolution useful in
+            // the picker even when an extractor omits all size and bitrate fields.
+            let fallbackVideoBitrate: Double? = height.map { height in
+                switch height {
+                case 4320...: return 45_000
+                case 2160...: return 18_000
+                case 1440...: return 9_000
+                case 1080...: return 5_000
+                case 720...: return 2_500
+                case 480...: return 1_200
+                case 360...: return 800
+                case 240...: return 400
+                default: return 200
+                }
+            }
+
+            guard let bitrate = reportedBitrate ?? fallbackVideoBitrate else { return nil }
+            let bytes = bitrate * 1_000 * duration / 8
+            guard bytes.isFinite, bytes > 0, bytes <= Double(Int64.max) else { return nil }
+            return (Int64(bytes.rounded()), true)
+        }
+
+        let bestAudioSize = rawFormats
+            .filter { $0.vcodec == "none" && $0.acodec != nil && $0.acodec != "none" }
+            .compactMap { estimatedSize(for: $0, height: nil) }
+            .max { $0.bytes < $1.bytes }
 
         for raw in videoStreams {
             var h: Int? = raw.height
@@ -285,14 +328,26 @@ struct MediaInfo: Codable, Identifiable {
             let fps = raw.fps ?? 30.0
             let hasHdr = (raw.dynamicRange?.uppercased().contains("HDR") == true) ||
                          (raw.formatNote?.uppercased().contains("HDR") == true)
+            let videoSize = estimatedSize(for: raw, height: resolvedHeight)
+
+            let combinedSize: (bytes: Int64, isApproximate: Bool)?
+            if raw.acodec == "none", let videoSize, let audioSize = bestAudioSize {
+                let (totalBytes, overflow) = videoSize.bytes.addingReportingOverflow(audioSize.bytes)
+                combinedSize = overflow ? videoSize : (
+                    totalBytes,
+                    videoSize.isApproximate || audioSize.isApproximate
+                )
+            } else {
+                combinedSize = videoSize
+            }
 
             specs.append(StreamSpec(
                 height: resolvedHeight,
                 width: raw.width,
                 fps: fps,
                 hasHdr: hasHdr,
-                filesize: raw.filesize,
-                filesizeApprox: raw.filesizeApprox,
+                estimatedBytes: combinedSize?.bytes,
+                sizeIsApproximate: combinedSize?.isApproximate ?? true,
                 formatNote: raw.formatNote
             ))
         }
@@ -314,8 +369,11 @@ struct MediaInfo: Codable, Identifiable {
         for (heightTier, group) in grouped {
             let maxFps = group.map { $0.fps }.max() ?? 30.0
             let hasHdr = group.contains { $0.hasHdr }
-            let maxFilesize = group.compactMap { $0.filesize }.max()
-            let maxFilesizeApprox = group.compactMap { $0.filesizeApprox }.max()
+            let largestSizedStream = group
+                .filter { $0.estimatedBytes != nil }
+                .max { ($0.estimatedBytes ?? 0) < ($1.estimatedBytes ?? 0) }
+            let estimatedBytes = largestSizedStream?.estimatedBytes
+            let isApproximate = largestSizedStream?.sizeIsApproximate ?? true
             let firstWidth = group.compactMap { $0.width }.max()
             let note = group.compactMap { $0.formatNote }.first
             let vq = VideoQuality.forHeight(heightTier)
@@ -326,8 +384,8 @@ struct MediaInfo: Codable, Identifiable {
                 fps: maxFps,
                 hasHdr: hasHdr,
                 formatNote: note,
-                filesize: maxFilesize,
-                filesizeApprox: maxFilesizeApprox,
+                filesize: isApproximate ? nil : estimatedBytes,
+                filesizeApprox: isApproximate ? estimatedBytes : nil,
                 videoQuality: vq
             ))
         }

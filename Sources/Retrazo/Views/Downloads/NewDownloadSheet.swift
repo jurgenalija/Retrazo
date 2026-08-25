@@ -440,7 +440,7 @@ struct NewDownloadSheet: View {
                                 title: quality.label,
                                 subtitle: isSourceMaximum ? "Highest resolution provided by this source" : "Download at up to \(quality.height)p",
                                 badge: isSourceMaximum ? "SOURCE MAX" : nil,
-                                size: nil,
+                                size: quality.formattedSize,
                                 isSelected: isSelected,
                                 onSelect: { selectedQualityHeight = quality.height }
                             )
