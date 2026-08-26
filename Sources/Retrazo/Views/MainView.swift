@@ -82,8 +82,7 @@ struct MainView: View {
                 }
             }
             .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            .background(finderSidebarBackground.ignoresSafeArea())
+            .modifier(SidebarToggleRemovalModifier())
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } detail: {
             // Detail Area
@@ -138,20 +137,23 @@ struct MainView: View {
         }
     }
     
-    private var finderSidebarBackground: Color {
-        if colorScheme == .dark {
-            // Matches Finder's opaque dark sidebar surface on current macOS.
-            return Color(red: 40 / 255, green: 40 / 255, blue: 40 / 255)
-        }
-        return Color(nsColor: .windowBackgroundColor)
-    }
-
     private var finderContentBackground: Color {
         if colorScheme == .dark {
             // NSColor.windowBackgroundColor resolves to Finder's #1E1E1E content surface.
             return Color(red: 30 / 255, green: 30 / 255, blue: 30 / 255)
         }
         return Color(nsColor: .windowBackgroundColor)
+    }
+}
+
+private struct SidebarToggleRemovalModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.toolbar(removing: .sidebarToggle)
+        } else {
+            content
+        }
     }
 }
 
