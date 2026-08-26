@@ -1,7 +1,7 @@
 # Retrazo 🎬
 
 <p align="center">
-  <img src="Assets/AppIcon.png" width="128" height="128" alt="Retrazo App Icon" style="border-radius: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+  <img src="Assets/AppIcon-README.png" width="128" height="128" alt="Retrazo App Icon" />
 </p>
 
 <p align="center">
