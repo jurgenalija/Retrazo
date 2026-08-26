@@ -36,9 +36,6 @@ jobs:
       - name: Make Scripts Executable
         run: chmod +x scripts/*.sh
 
-      - name: Generate App Icon
-        run: ./scripts/generate_icon.sh
-
       - name: Build Retrazo App
         env:
           RETRAZO_BUILD_NUMBER: ${{ github.run_number }}
@@ -51,8 +48,9 @@ jobs:
       - name: Verify App Bundle
         run: |
           codesign --verify --deep --strict --verbose=2 build/Retrazo.app
-          test -f build/Retrazo.app/Contents/Resources/Assets.car
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' build/Retrazo.app/Contents/Info.plist)" = "AppIcon"
+          cmp Sources/Retrazo/Resources/AppIcon.icns build/Retrazo.app/Contents/Resources/AppIcon.icns
+          test ! -f build/Retrazo.app/Contents/Resources/Assets.car
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' build/Retrazo.app/Contents/Info.plist)" = "AppIcon"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/Retrazo.app/Contents/Info.plist)" = "${GITHUB_REF_NAME#v}"
           fi

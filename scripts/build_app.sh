@@ -57,48 +57,8 @@ if [ -f "Sources/Retrazo/Resources/AppIcon.icns" ]; then
     cp "Sources/Retrazo/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 fi
 
-# Compile the native layered macOS icon when the full Xcode toolchain is
-# available. macOS 26 reads the compiled Assets.car, while AppIcon.icns stays
-# in the bundle as the fallback for older systems and local CLT-only builds.
-ICON_COMPOSER_SOURCE="Assets/AppIcon.icon"
-if [ -d "$ICON_COMPOSER_SOURCE" ]; then
-    if ACTOOL_PATH="$(xcrun --find actool 2>/dev/null)" && [ -x "$ACTOOL_PATH" ]; then
-        echo "Compiling native AppIcon.icon..."
-        ICON_BUILD_DIR="$(mktemp -d)"
-        ICON_PARTIAL_PLIST="$ICON_BUILD_DIR/assetcatalog_generated_info.plist"
-
-        "$ACTOOL_PATH" "$ICON_COMPOSER_SOURCE" \
-            --compile "$ICON_BUILD_DIR" \
-            --app-icon AppIcon \
-            --include-all-app-icons \
-            --enable-on-demand-resources NO \
-            --target-device mac \
-            --minimum-deployment-target 13.0 \
-            --platform macosx \
-            --output-partial-info-plist "$ICON_PARTIAL_PLIST" \
-            --output-format human-readable-text \
-            --notices \
-            --warnings
-
-        if [ ! -f "$ICON_BUILD_DIR/Assets.car" ]; then
-            echo "Error: actool did not produce Assets.car"
-            exit 1
-        fi
-
-        cp "$ICON_BUILD_DIR/Assets.car" "$RESOURCES_DIR/Assets.car"
-        if [ -f "$ICON_BUILD_DIR/AppIcon.icns" ]; then
-            cp "$ICON_BUILD_DIR/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
-        fi
-
-        if ! plutil -replace CFBundleIconName -string AppIcon "$CONTENTS_DIR/Info.plist" 2>/dev/null; then
-            plutil -insert CFBundleIconName -string AppIcon "$CONTENTS_DIR/Info.plist"
-        fi
-
-        rm -rf "$ICON_BUILD_DIR"
-    else
-        echo "Full Xcode actool not found; using AppIcon.icns fallback."
-    fi
-fi
+# Keep the supplied finished AppIcon.icns verbatim. Compiling the layered
+# Icon Composer source adds macOS's dynamic highlight/reflection treatment.
 
 # Copy any SPM resource bundles
 BIN_DIR="$(swift build -c release --show-bin-path)"
