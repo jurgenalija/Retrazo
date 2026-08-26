@@ -202,9 +202,11 @@ private final class SidebarToolbarToggleRemovalView: NSView {
     fileprivate func removeSidebarToggle() {
         DispatchQueue.main.async { [weak self] in
             guard let toolbar = self?.window?.toolbar else { return }
-            for index in toolbar.items.indices.reversed()
-            where toolbar.items[index].itemIdentifier == .toggleSidebar {
-                toolbar.removeItem(at: index)
+            for index in toolbar.items.indices.reversed() {
+                let id = toolbar.items[index].itemIdentifier.rawValue
+                if id == "NSToolbarToggleSidebarItem" || id == "toggleSidebar" || id.localizedCaseInsensitiveContains("togglesidebar") {
+                    toolbar.removeItem(at: index)
+                }
             }
         }
     }
