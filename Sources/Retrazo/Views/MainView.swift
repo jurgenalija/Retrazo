@@ -121,7 +121,6 @@ struct MainView: View {
             }
         }
         .modifier(SidebarToggleRemovalModifier())
-        .background(SidebarToolbarToggleRemover())
         .sheet(isPresented: $appState.isShowingNewDownloadSheet) {
             NewDownloadSheet(prefillURL: appState.newDownloadPrefillURL)
         }
@@ -155,59 +154,6 @@ private struct SidebarToggleRemovalModifier: ViewModifier {
             content.toolbar(removing: .sidebarToggle)
         } else {
             content
-        }
-    }
-}
-
-private struct SidebarToolbarToggleRemover: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        SidebarToolbarToggleRemovalView(frame: .zero)
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        (nsView as? SidebarToolbarToggleRemovalView)?.removeSidebarToggle()
-    }
-}
-
-private final class SidebarToolbarToggleRemovalView: NSView {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(toolbarDidAddItem(_:)),
-            name: NSToolbar.willAddItemNotification,
-            object: nil
-        )
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        removeSidebarToggle()
-    }
-
-    @objc private func toolbarDidAddItem(_ notification: Notification) {
-        guard notification.object as? NSToolbar === window?.toolbar else { return }
-        removeSidebarToggle()
-    }
-
-    fileprivate func removeSidebarToggle() {
-        DispatchQueue.main.async { [weak self] in
-            guard let toolbar = self?.window?.toolbar else { return }
-            for index in toolbar.items.indices.reversed() {
-                let id = toolbar.items[index].itemIdentifier.rawValue
-                if id == "NSToolbarToggleSidebarItem" || id == "toggleSidebar" || id.localizedCaseInsensitiveContains("togglesidebar") {
-                    toolbar.removeItem(at: index)
-                }
-            }
         }
     }
 }

@@ -47,8 +47,7 @@ struct RetrazoApp: App {
             }
             
             // View Navigation & Appearance
-            CommandGroup(replacing: .sidebarCommands) { }
-            CommandGroup(after: .sidebar) {
+            CommandGroup(replacing: .sidebar) {
                 Button("Downloads") {
                     appState.selectedTab = .downloads
                 }
